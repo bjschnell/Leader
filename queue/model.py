@@ -43,7 +43,11 @@ def update(prev, snapshot, screen, dismissals, now, stale_after=DEFAULT_STALE_AF
         seq = agent.get("state_change_seq")
         tokens = agent.get("tokens") or {}
 
-        since = old.get("since", now) if old.get("status") == status else now
+        if old.get("status") == status:
+            since, since_known = old.get("since", now), old.get("since_known", False)
+        else:
+            # First sighting: herdr doesn't say how long the state has lasted.
+            since, since_known = now, bool(old)
 
         # Display-only reconciliation for hook gaps (Esc interrupt / Esc deny):
         # the screen shows an idle prompt while our authority still says busy.
@@ -89,6 +93,7 @@ def update(prev, snapshot, screen, dismissals, now, stale_after=DEFAULT_STALE_AF
             "status": status,
             "state_change_seq": seq,
             "since": since,
+            "since_known": since_known,
             "screen_idle_since": screen_idle_since,
             "interrupted": interrupted,
             "category": category,

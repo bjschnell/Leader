@@ -122,3 +122,24 @@ Other facts learned:
 - Metadata tokens can lag the status event by a few tens of ms. Consumers should re-read, not assume they arrive together.
 
 The two ❌ gaps are inherent: Claude Code emits no hook for them. Mitigation belongs in M2 (see the open decision in the M2 notes).
+
+## 12. M2/M3 live results (2026-09-29)
+
+Isolated dev universe: `scripts/dev-server` runs the dev session with its own `XDG_CONFIG_HOME` (`~/.cache/herdr-queue-dev`).
+- **The plugin registry is global per config dir** (`$XDG_CONFIG_HOME/herdr/plugins.json`), *not* per session. A `plugin link` done in the old dev session (which shared `~/.config/herdr`) was visible from `default`. It was linked `--disabled`, so nothing ran, and I unlinked it within a minute and removed the created `plugins.json`/`plugins/` (`.plugins.lock` predates this work). All plugin testing now happens in the isolated universe.
+- `HERDR_CONFIG_PATH` exists, but the registry ignores it. Only `XDG_CONFIG_HOME` isolates the registry.
+- `plugin enable` doesn't run `[[startup]]`. Startup runs after session restore only.
+
+M2 (daemon, 3 real Claude agents, one per tab):
+- Prompt → `working` in state.json ≈150 ms. Permission dialog → `blocked` with "Permission: Bash touch …" ≈50–150 ms after the dialog.
+- Background finish → `done`. `pane.focus` jump → `idle` (seen). The long-running agent stayed `working` the whole time and was never shown as waiting ✅.
+- Esc-deny → shown as `idle`/`interrupted?` ≈11.6 s later (10 s `stale_after` + poll) ✅ display-only, per the user's decision.
+- AC1: the daemon has 0 TCP/UDP/Unix listeners (`ss -ltnup`, `ss -lxp`). Its only socket is its outgoing subscription ✅.
+- AC5: killing the daemon (done several times) left agents and herdr unaffected ✅.
+
+M3 / **OQ2 — resolved on 0.8.2 with a real attached client** (herdr TUI in a pty, keys written to the pty):
+- `[[keys.command]] key="prefix+a" type="plugin_action" command="bjschnell.herdr-queue.open"` works.
+- The overlay pane gets keyboard focus: `j`, Enter, `q`, `S` and Esc all reach the TUI.
+- Enter → `pane.focus(target)` → focus moves to the target's tab and pane, and the overlay closes **without** restoring the old focus over the jump. `q`/Esc close it and focus returns to the previous pane.
+- The state dir is deliberately `$XDG_STATE_HOME/herdr-queue/<session>`, not `$HERDR_PLUGIN_STATE_DIR`. Otherwise a daemon started from a shell and an overlay started by herdr use different files (observed: ages reset to "1s").
+- herdr doesn't expose how long a pane has been in its state. Rows whose transition the daemon didn't witness show their age with a `+` (lower bound).

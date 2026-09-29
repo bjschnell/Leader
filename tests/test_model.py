@@ -43,6 +43,14 @@ class UpdateTests(unittest.TestCase):
         s3 = m.update(s2, snap(agent("w1:p1", "blocked", seq=3)), {}, {}, now=107)
         self.assertEqual(s3["w1:p1"]["since"], 107)
 
+    def test_since_known_only_after_an_observed_transition(self):
+        s1 = m.update({}, snap(agent("w1:p1", "working")), {}, {}, now=100)
+        self.assertFalse(s1["w1:p1"]["since_known"])      # was already working when first seen
+        s2 = m.update(s1, snap(agent("w1:p1", "done")), {}, {}, now=110)
+        self.assertTrue(s2["w1:p1"]["since_known"])       # we saw it finish
+        s3 = m.update(s2, snap(agent("w1:p1", "done")), {}, {}, now=120)
+        self.assertTrue(s3["w1:p1"]["since_known"])
+
     def test_ranking(self):
         s = m.update({}, snap(agent("w1:p4", "idle"), agent("w1:p3", "working")), {}, {}, now=1)
         s = m.update(s, snap(agent("w1:p4", "idle"), agent("w1:p3", "working"),

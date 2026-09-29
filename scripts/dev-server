@@ -1,0 +1,9 @@
+#!/bin/sh
+# Run a headless herdr server for the isolated dev session (foreground).
+# Seeds $DEV_XDG/herdr/config.toml from your real config once, then leaves it alone.
+. "$(dirname "$0")/dev-env"
+mkdir -p "$DEV_XDG/herdr"
+[ -f "$DEV_XDG/herdr/config.toml" ] || cp "${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml" "$DEV_XDG/herdr/config.toml" 2>/dev/null || :
+cd /
+exec env -u HERDR_SOCKET_PATH -u HERDR_PANE_ID -u HERDR_TAB_ID -u HERDR_WORKSPACE_ID -u HERDR_ENV \
+  XDG_CONFIG_HOME="$DEV_XDG" herdr --session herdr-queue-dev server

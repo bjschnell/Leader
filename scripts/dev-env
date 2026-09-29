@@ -1,0 +1,5 @@
+# Sourced by the dev scripts: an isolated herdr universe for testing.
+# Its own XDG_CONFIG_HOME means its own config.toml, plugins.json and sockets,
+# so plugin links and keybindings never reach `default` or `alice-agents`.
+DEV_XDG="${HERDR_QUEUE_DEV_XDG:-${XDG_CACHE_HOME:-$HOME/.cache}/herdr-queue-dev}"
+DEV_SOCK="$DEV_XDG/herdr/sessions/herdr-queue-dev/herdr.sock"

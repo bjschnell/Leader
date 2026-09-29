@@ -1,0 +1,28 @@
+id = "bjschnell.herdr-queue"
+name = "herdr-queue (Leader)"
+version = "0.1.0"
+min_herdr_version = "0.8.2"
+description = "Ranked queue of agents waiting on you, with one-line 'what it needs' and jump-to-pane"
+platforms = ["linux", "macos"]
+
+# Keeps <state dir>/state.json current. Optional: the overlay refreshes in-process
+# when no daemon holds the lock.
+[[startup]]
+command = ["python3", "queue/daemon.py"]
+
+[[panes]]
+id = "queue"
+title = "Agent queue"
+placement = "overlay"
+command = ["python3", "queue/tui.py"]
+
+# Bind in herdr's config.toml:
+#   [[keys.command]]
+#   key = "prefix+a"
+#   type = "plugin_action"
+#   command = "bjschnell.herdr-queue.open"
+[[actions]]
+id = "open"
+title = "Open agent queue"
+contexts = ["global"]
+command = ["sh", "-c", "exec \"$HERDR_BIN_PATH\" plugin pane open --plugin \"$HERDR_PLUGIN_ID\" --entrypoint queue --focus"]

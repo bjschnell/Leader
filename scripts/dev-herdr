@@ -1,4 +1,5 @@
 #!/bin/sh
-# herdr CLI pinned to the isolated dev session (herdr-queue-dev). Never targets default/alice-agents.
+# herdr CLI pinned to the isolated dev session (see scripts/dev-server). Never targets default/alice-agents.
+. "$(dirname "$0")/dev-env"
 exec env -u HERDR_PANE_ID -u HERDR_TAB_ID -u HERDR_WORKSPACE_ID \
-  HERDR_SOCKET_PATH="$HOME/.config/herdr/sessions/herdr-queue-dev/herdr.sock" herdr "$@"
+  XDG_CONFIG_HOME="$DEV_XDG" HERDR_SOCKET_PATH="$DEV_SOCK" herdr "$@"
