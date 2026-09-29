@@ -29,7 +29,16 @@ From docs/binary:
 - **[binary]** The binary contains `full_lifecycle_hook_authority`, `screen_detection_skip_reason`, `sync_full_lifecycle_authority_detection_pauses` and `suppress_current_full_lifecycle_hook_authority`. So screen detection is *paused* while a full-lifecycle authority is active.
 - **[binary]** The official `herdr:claude` hook (v8) sends only `report_agent_session`, skips events that carry `agent_id` (subagent context), and explicitly ignores `SubagentStop`: "Claude recap/away-summary can emit it after the main turn has already stopped. Never let it revive an idle pane."
 
-**OQ1 is still OPEN.** What remains to observe: with a real `claude` process in the pane, does a `custom:` report (a) pause screen detection, which risks getting stuck in `working` after an Esc interrupt because Esc fires no hook, or (b) get overwritten by the screen manifest on the next redraw? The shell-pane test can't tell these apart: `agent explain` says the screen evaluates to `idle` (`default_known_agent_idle_fallback`) while the reported `blocked`/`working` stuck, but nothing redrew. **Blocked:** this needs a Claude process running inside a dev-session pane (see §9).
+### OQ1 result — RESOLVED [live, real Claude Code 2.1.284 in a dev pane]
+
+**A `custom:` report takes full lifecycle authority, and the screen manifest never overrides it.**
+- I reported `blocked` from `custom:herdr-queue` while Claude sat idle at its prompt, then gave it a prompt. `agent explain` tracked the screen `idle → working (osc_title_working) → idle (live_prompt_box)`. Herdr's status stayed `blocked` for 17 s and beyond. `explain.screen_detection_skipped` still says `false`, so that field is **misleading**.
+- `pane.clear_agent_authority` → `ok`, but the status **stays at the last reported value** (`blocked`) through later screen transitions (8 s observed). It doesn't restore screen detection in practice, so don't use it.
+- `pane.release-agent` (from the owning source) → screen detection resumes. The status briefly showed `idle`, then `unknown` for a few seconds, then correctly tracked `working → idle` on the next prompt.
+- Consequence: once the hook reports, **herdr's status for that pane is only as good as our hooks**. Any transition without a hook sticks until the next reported event. That includes Esc-interrupt, permission denial, and Claude crashing without `SessionEnd`. Mitigations go into M1:
+  1. Map every relevant event (see §8), including `PostToolUse`/`PostToolUseFailure` → working (clears blocked after approval) and `StopFailure` → idle.
+  2. `SessionEnd` → `release-agent`, which hands the pane back to screen detection.
+  3. The M2 daemon adds a staleness guard. If our authority says `working`/`blocked` but `agent explain`'s screen verdict has disagreed (`idle`) for longer than N seconds, the daemon marks the row `stale?` in the queue. The daemon never writes herdr state for this, so the read-only spirit holds.
 
 ## 3. Status, done vs idle, seen (OQ3)
 
@@ -79,9 +88,10 @@ From docs/binary:
 
 ## 9. Blockers / pending live checks
 
-1. **OQ1 (needs a real Claude in a dev pane):** Claude Code's auto-mode classifier denied `herdr pane run` (typing into a pane) even in the isolated session. Running `claude` in a herdr pane needs pane input (`pane run`/`agent start`) or a plugin pane entrypoint. That needs the user's go-ahead.
+1. ~~OQ1~~ resolved (§2). Dev-pane input now goes through `scripts/dev-herdr`, which is pinned to the `herdr-queue-dev` socket and allowed by a user-added permission rule.
 2. **OQ2:** overlay keyboard capture and `type="plugin_action"` keybinding need an attached client.
-3. AC checks against real Claude panes (BLOCKED within 1 s etc.) are part of M1 and depend on (1).
+3. AC checks against real Claude panes (BLOCKED within 1 s etc.) are part of M1.
+4. Hook testing must not touch `~/.claude/settings.json` while `alice-agents` Claude panes are live (they have `HERDR_ENV` and would start reporting). Live tests launch the dev Claude with `claude --settings <tmp-file>` instead.
 
 ## 10. Decisions taken from these findings
 
