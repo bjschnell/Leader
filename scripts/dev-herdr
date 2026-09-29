@@ -1,0 +1,4 @@
+#!/bin/sh
+# herdr CLI pinned to the isolated dev session (herdr-queue-dev). Never targets default/alice-agents.
+exec env -u HERDR_PANE_ID -u HERDR_TAB_ID -u HERDR_WORKSPACE_ID \
+  HERDR_SOCKET_PATH="$HOME/.config/herdr/sessions/herdr-queue-dev/herdr.sock" herdr "$@"
