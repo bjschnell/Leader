@@ -89,6 +89,9 @@ class FakeClient:
     def focus_pane(self, pid):
         self.focused.append(pid)
 
+    def read(self, pid, lines=80):
+        return "● Migrated 3 tables.\n\nDone: the schema is at v12.\n\n❯ \n"
+
 
 class KeyTests(unittest.TestCase):
     def setUp(self):
@@ -97,6 +100,7 @@ class KeyTests(unittest.TestCase):
         self.app.client, self.app.paths = FakeClient(), self.paths
         self.app.selected, self.app.show_idle, self.app.dismissals = 0, False, {}
         self.app.status_line, self.app.status_until = None, 0
+        self.app.overrides, self.app.cfg = {}, {"tail_lines": 80}
         _, self.rows = tui.render(DOC, 100, 12, 0, False, 600)
 
     def test_navigation_and_jump(self):
@@ -112,6 +116,16 @@ class KeyTests(unittest.TestCase):
         self.app.handle_key(ord("S"), self.rows, DOC)
         with open(self.paths.dismissals) as fh:
             self.assertEqual(json.load(fh), {"w1:p3": 7})
+
+    def test_refresh_summary_overrides_until_next_transition(self):
+        self.app.selected = 2                              # the DONE row (w1:p3, seq 7)
+        self.app.handle_key(ord("r"), self.rows, DOC)
+        self.assertEqual(self.app.overrides["w1:p3"], (7, "Done: the schema is at v12."))
+        _, rows = tui.render(DOC, 100, 12, 0, False, 600, overrides=self.app.overrides)
+        self.assertEqual([r["summary"] for r in rows if r["pane_id"] == "w1:p3"], ["Done: the schema is at v12."])
+        moved_on = {"session": "dev", "panes": dict(DOC["panes"], **{"w1:p3": entry("w1:p3", "done", 900, seq=8)})}
+        _, rows = tui.render(moved_on, 100, 12, 0, False, 1000, overrides=self.app.overrides)
+        self.assertEqual([r["summary"] for r in rows if r["pane_id"] == "w1:p3"], [None])
 
     def test_quit_keys(self):
         self.assertEqual(self.app.handle_key(ord("q"), self.rows, DOC), "quit")

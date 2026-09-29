@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config  # noqa: E402
 import herdr  # noqa: E402
 import model  # noqa: E402
+import summarize  # noqa: E402
 
 GLOBAL_EVENTS = [
     "pane.created", "pane.closed", "pane.exited", "pane.updated", "pane.focused",
@@ -72,6 +73,7 @@ class Daemon:
         self.sub = None
         self.sub_panes = None
         self.last_written = None
+        self.summary_cache = {}
 
     def refresh(self):
         """One snapshot -> state.json pass. Returns the snapshot's agent pane ids."""
@@ -86,6 +88,7 @@ class Daemon:
         now = self.clock()
         self.state = model.update(self.state, snapshot, screen, dismissals, now,
                                   stale_after=float(self.cfg["stale_after"]))
+        self.fill_summaries(snapshot)
         doc = {
             "version": 1,
             "session": self.session,
@@ -104,6 +107,23 @@ class Daemon:
         else:
             self.touch(now)
         return {a["pane_id"] for a in snapshot.get("agents", [])}
+
+    def fill_summaries(self, snapshot):
+        """Pane-tail heuristics for BLOCKED/DONE rows the hooks didn't describe
+        (e.g. screen-detected agents). Cached per transition, so each tail is read once."""
+        tokens = {a["pane_id"]: a.get("tokens") or {} for a in snapshot.get("agents", [])}
+        live = set()
+        for pid, entry in self.state.items():
+            if entry["category"] not in (model.BLOCKED, model.DONE) or entry["summary"]:
+                continue
+            key = (pid, entry["state_change_seq"], entry["category"])
+            live.add(key)
+            if key not in self.summary_cache:
+                lines = int(self.cfg["tail_lines"])
+                self.summary_cache[key] = summarize.summarize(
+                    entry["category"], tokens.get(pid), lambda: self.client.read(pid, lines=lines))
+            entry["summary"] = self.summary_cache[key]
+        self.summary_cache = {k: v for k, v in self.summary_cache.items() if k in live}
 
     def touch(self, now):
         """Heartbeat so readers can tell a live daemon from a stale file."""

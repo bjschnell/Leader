@@ -27,6 +27,8 @@ class World:
     def __init__(self):
         self.agents = []
         self.screen = {}
+        self.tails = {}
+        self.reads = []
 
     def reply(self, req):
         m = req["method"]
@@ -35,6 +37,9 @@ class World:
                 "version": "0.8.2", "protocol": 20, "workspaces": [{"workspace_id": "w1", "label": "api"}],
                 "tabs": [{"tab_id": "w1:t1", "label": "main"}], "panes": [], "layouts": [],
                 "agents": list(self.agents), "focused_pane_id": None}}
+        if m == "pane.read":
+            self.reads.append(req["params"]["pane_id"])
+            return {"type": "pane_read", "read": {"text": self.tails.get(req["params"]["pane_id"], "")}}
         if m == "agent.explain":
             return {"type": "agent_explain", "explain": {"state": self.screen.get(req["params"]["target"], "idle")}}
         if m == "events.subscribe":
@@ -72,6 +77,24 @@ class DaemonTests(unittest.TestCase):
         self.assertEqual(s["panes"]["w1:p2"]["label"], "api/main")
         explained = [r["params"]["target"] for r in self.fake.requests if r["method"] == "agent.explain"]
         self.assertEqual(explained, ["w1:p2"])  # only busy panes are cross-checked
+
+    def test_tail_summary_for_undescribed_panes_is_read_once(self):
+        tail = ("● Here are the flaky tests:\n  1. test_a\n  2. test_b\n\n✻ Baked for 3s\n"
+                "────\n❯ \n────\n  ⏸ manual mode on\n")
+        self.world.agents = [agent("w1:p1", "done", seq=3, agent="codex")]
+        self.world.tails = {"w1:p1": tail}
+        for _ in range(3):
+            self.daemon.refresh()
+        self.assertEqual(self.state()["panes"]["w1:p1"]["summary"], "Here are the flaky tests:")
+        self.assertEqual(self.world.reads, ["w1:p1"])
+        self.world.agents = [agent("w1:p1", "done", seq=5, agent="codex")]   # a new turn finished
+        self.daemon.refresh()
+        self.assertEqual(self.world.reads, ["w1:p1", "w1:p1"])
+
+    def test_hook_tokens_avoid_tail_reads(self):
+        self.world.agents = [agent("w1:p1", "blocked", tokens={"hq_msg": "Tabs or spaces?", "hq_kind": "question"})]
+        self.daemon.refresh()
+        self.assertEqual(self.world.reads, [])
 
     def test_dismissals_file_is_honoured(self):
         self.world.agents = [agent("w1:p1", "done", seq=4)]

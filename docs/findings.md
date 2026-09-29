@@ -143,3 +143,13 @@ M3 / **OQ2 — resolved on 0.8.2 with a real attached client** (herdr TUI in a p
 - Enter → `pane.focus(target)` → focus moves to the target's tab and pane, and the overlay closes **without** restoring the old focus over the jump. `q`/Esc close it and focus returns to the previous pane.
 - The state dir is deliberately `$XDG_STATE_HOME/herdr-queue/<session>`, not `$HERDR_PLUGIN_STATE_DIR`. Otherwise a daemon started from a shell and an overlay started by herdr use different files (observed: ages reset to "1s").
 - herdr doesn't expose how long a pane has been in its state. Rows whose transition the daemon didn't witness show their age with a `+` (lower bound).
+
+## 13. M4 live results (2026-09-29)
+
+- Hooked Claude, multi-line answer ending "Done: …" → the queue shows the conclusion line, picked by the Stop hook from `last_assistant_message`.
+- **Unhooked** Claude (screen-detected, no tokens) at a Bash permission dialog → the pane-tail heuristic gives "Do you want to proceed? — touch plain.txt".
+- Claude hard-wraps its replies with two-space continuation lines that `recent_unwrapped` can't rejoin. The summarizer rejoins them. A bare `❯` (empty prompt box), rules, spinner/"Brewed for" lines and the status bar are stripped as chrome.
+- The `pane.read` API spells the source `recent_unwrapped` (underscore). The CLI flag is `recent-unwrapped`.
+- Tail reads happen once per (pane, state_change_seq, category) and only for BLOCKED/DONE rows without hook tokens.
+- AC3 with the summarizer imported on Stop: n=100, median 15.7 ms, max 41.5 ms.
+- Fixtures in tests/fixtures are real captures, sanitized (paths replaced).

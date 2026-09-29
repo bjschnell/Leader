@@ -52,6 +52,16 @@ def last_line(text, limit=MAX_TEXT):
     return one_line(lines[-1], limit) if lines else None
 
 
+def summary_line(text, limit=MAX_TEXT):
+    """Most summary-like line of the final reply (queue/summarize.py), else its last line."""
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "queue"))
+        import summarize
+        return summarize.pick_summary_line(text, limit)
+    except Exception:
+        return last_line(text, limit)
+
+
 def describe_tool(payload):
     tool = payload.get("tool_name") or "tool"
     tool_input = payload.get("tool_input")
@@ -123,7 +133,7 @@ def plan(payload):
             return {"kind": "report", "state": "blocked", "message": msg, "tokens": tokens}
         return None  # idle_prompt etc.: already settled, must not revive
     if event in ("Stop", "StopFailure"):
-        last = last_line(payload.get("last_assistant_message"))
+        last = summary_line(payload.get("last_assistant_message"))
         if event == "StopFailure":
             err = payload.get("error_type") or payload.get("error") or "error"
             last = one_line(f"Turn failed: {err}")

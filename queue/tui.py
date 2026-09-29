@@ -19,6 +19,7 @@ import config  # noqa: E402
 import daemon as daemon_mod  # noqa: E402
 import herdr  # noqa: E402
 import model  # noqa: E402
+import summarize  # noqa: E402
 
 TICK_MS = 500
 TAGS = {model.BLOCKED: "BLOCKED", model.DONE: "DONE", model.WORKING: "WORKING", model.IDLE: "IDLE"}
@@ -35,9 +36,13 @@ def fmt_age(seconds):
     return f"{seconds // 86400}d"
 
 
-def visible_rows(doc, show_idle, dismissals=None):
-    """Ranked rows; dismissals from this TUI apply immediately, before the daemon catches up."""
+def visible_rows(doc, show_idle, dismissals=None, overrides=None):
+    """Ranked rows; dismissals and `r` refreshes from this TUI apply immediately."""
     panes = dict((doc or {}).get("panes", {}))
+    for pid, (seq, text) in (overrides or {}).items():
+        e = panes.get(pid)
+        if e and e["state_change_seq"] == seq and text:
+            panes[pid] = dict(e, summary=text)
     for pid, seq in (dismissals or {}).items():
         e = panes.get(pid)
         if e and e["category"] == model.DONE and e["state_change_seq"] == seq:
@@ -54,9 +59,9 @@ def footer_counts(rows_all):
     return " · ".join(parts)
 
 
-def render(doc, width, height, selected, show_idle, now, dismissals=None, status_line=None):
+def render(doc, width, height, selected, show_idle, now, dismissals=None, status_line=None, overrides=None):
     """Return (lines, rows). lines[i] is (text, style) with style in {title,row,selected,dim,footer}."""
-    rows_all = visible_rows(doc, True, dismissals)
+    rows_all = visible_rows(doc, True, dismissals, overrides)
     rows = rows_all if show_idle else [r for r in rows_all if r["category"] != model.IDLE]
     lines = [(f" herdr queue — {(doc or {}).get('session', '?')}", "title")]
     if doc is None:
@@ -78,7 +83,7 @@ def render(doc, width, height, selected, show_idle, now, dismissals=None, status
         lines.append((text[:max(0, width - 1)], style))
     while len(lines) < height - 1:
         lines.append(("", "row"))
-    foot = status_line or f" {footer_counts(rows_all)}   enter jump · s seen · S all seen · a idle · q close"
+    foot = status_line or f" {footer_counts(rows_all)}   enter jump · s/S seen · r refresh · a idle · q close"
     lines = lines[:height - 1] + [(foot[:max(0, width - 1)], "footer")]
     return lines, rows
 
@@ -106,6 +111,7 @@ class App:
         self.status_line = None
         self.status_until = 0
         self.dismissals = daemon_mod.read_json(paths.dismissals, {})
+        self.overrides = {}
         self.lock = daemon_mod.acquire_lock(paths.lock)  # None if a daemon is running
         self.embedded = daemon_mod.Daemon(client, paths, session, cfg) if self.lock else None
         self.last_embedded = 0.0
@@ -141,6 +147,14 @@ class App:
             self.dismissals = mark_seen(self.paths, doc, [rows[self.selected]["pane_id"]])
         elif key == ord("S"):
             self.dismissals = mark_seen(self.paths, doc, [r["pane_id"] for r in rows])
+        elif key == ord("r") and rows:
+            row = rows[self.selected]
+            category = "done" if row["category"] == model.IDLE else row["category"]
+            text = summarize.summarize(category, {}, lambda: self.client.read(
+                row["pane_id"], lines=int(self.cfg["tail_lines"])))
+            self.overrides[row["pane_id"]] = (row["state_change_seq"], text)
+            if not text:
+                self.flash(" nothing summary-like in the pane tail")
         elif key in (curses.KEY_ENTER, 10, 13) and rows:
             pid = rows[self.selected]["pane_id"]
             try:
@@ -172,9 +186,11 @@ def run(stdscr, app):
         h, w = stdscr.getmaxyx()
         if app.status_line and time.time() > app.status_until:
             app.status_line = None
-        _, rows = render(doc, w, h, app.selected, app.show_idle, time.time(), app.dismissals)
+        _, rows = render(doc, w, h, app.selected, app.show_idle, time.time(), app.dismissals,
+                         overrides=app.overrides)
         app.selected = min(app.selected, max(0, len(rows) - 1))
-        lines, rows = render(doc, w, h, app.selected, app.show_idle, time.time(), app.dismissals, app.status_line)
+        lines, rows = render(doc, w, h, app.selected, app.show_idle, time.time(), app.dismissals,
+                             app.status_line, app.overrides)
         stdscr.erase()
         for y, (text, style) in enumerate(lines[:h]):
             try:

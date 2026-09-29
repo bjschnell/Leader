@@ -1,0 +1,60 @@
+  202. Squid
+  203. Cuttlefish
+  204. Jellyfish
+  205. Starfish
+  206. Sea urchin
+  207. Crab
+  208. Lobster
+  209. Shrimp
+  210. Krill
+  211. Oyster
+  212. Clam
+  213. Mussel
+  214. Scallop
+  215. Nautilus
+  216. Barnacle
+❯ Write a numbered list of 250 distinct animal names, one per line. No tools.
+  217. Ant
+  218. Bee
+  219. Beetle
+  220. Butterfly
+  221. Cicada
+  222. Cockroach
+  223. Cricket
+  224. Dragonfly
+  225. Firefly
+  226. Flea
+  227. Fly
+  228. Grasshopper
+  229. Hornet
+  230. Ladybug
+  231. Locust
+  232. Mantis
+  233. Mosquito
+  234. Moth
+  235. Termite
+  236. Wasp
+  237. Earwig
+  238. Scorpion
+  239. Spider
+  240. Mite
+  241. Tick
+  242. Centipede
+  243. Millipede
+  244. Earthworm
+  245. Leech
+  246. Snail
+  247. Slug
+  248. Tardigrade
+  249. Silverfish
+  250. Aphid
+
+✻ Brewed for 29s · done 1:22 p.m.
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⚠ Transcript saving is off — inherited CLAUDE_CODE_CHILD_SESSION marker · restart with CLAUDE_CODE_FORCE_SESS…
+  [OMC#4.15.10L] | Model: Opus 5.5 | 5h:[###-----]42%(0h27m) wk:[###-----]35%(4d18h)
+  session:0m | ctx:[----------]4%
+  ⏸ manual mode on

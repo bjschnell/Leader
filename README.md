@@ -38,6 +38,10 @@ description = "agent queue"
 The daemon (`queue/daemon.py`, also started by the plugin's `[[startup]]` hook) keeps `$XDG_STATE_HOME/herdr-queue/<session>/state.json` current. If it isn't running, the overlay refreshes by itself while it's open.
 `python3 queue/tui.py --print --all` renders the queue once to stdout.
 
+## Summaries (M4)
+
+Every waiting row gets a one-line reason. Hooked Claude panes use the hook's text: the permission or question for BLOCKED, and the most summary-like line of the final reply for DONE. Other agents fall back to heuristics over the pane tail. `r` in the overlay re-summarizes the selected row from its tail. There are no LLM calls (the M5 option is off and not implemented).
+
 ## Development
 
 ```sh

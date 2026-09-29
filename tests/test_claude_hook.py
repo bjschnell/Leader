@@ -76,6 +76,10 @@ class PlanTests(unittest.TestCase):
         a = ch.plan(ev("Stop", last_assistant_message="Line one\n\nAll tests pass.\n"))
         self.assertEqual(a["tokens"], {ch.MSG_TOKEN: None, ch.KIND_TOKEN: None, ch.LAST_TOKEN: "All tests pass."})
 
+    def test_stop_uses_summary_like_line(self):
+        a = ch.plan(ev("Stop", last_assistant_message="Refactored the lexer.\n- a\n- b\n\nAll 42 tests pass."))
+        self.assertEqual(a["tokens"][ch.LAST_TOKEN], "All 42 tests pass.")
+
     def test_one_line_truncates(self):
         self.assertEqual(len(ch.one_line("x" * 500)), ch.MAX_TEXT)
         self.assertIsNone(ch.one_line("  \n "))
