@@ -104,6 +104,20 @@ class CliTests(unittest.TestCase):
         self.assertEqual(self.run_cli("install")[0], 0)
         self.assertEqual(len(ours(self.read())), len(ih.EVENTS))
 
+    def test_symlinked_settings_stays_a_symlink(self):
+        real = os.path.join(self.dir, "dotfiles-settings.json")
+        os.replace(self.path, real)
+        os.symlink(real, self.path)
+        self.run_cli("install")
+        self.assertTrue(os.path.islink(self.path))
+        with open(real) as fh:
+            self.assertEqual(len(ours(json.load(fh))), len(ih.EVENTS))
+
+    def test_backups_in_the_same_second_do_not_collide(self):
+        self.run_cli("install")
+        self.run_cli("uninstall")
+        self.assertEqual(len(glob.glob(self.path + ".bak.herdr-queue.*")), 2)
+
     def test_invalid_json_is_left_alone(self):
         with open(self.path, "w") as fh:
             fh.write("{broken")

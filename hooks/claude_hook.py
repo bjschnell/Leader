@@ -33,6 +33,9 @@ BLOCKING_NOTIFICATIONS = {
     "agent_needs_input",
 }
 SESSION_START_IDLE_SOURCES = {"startup", "resume", "clear"}
+# A subagent's permission dialog / question blocks the same pane, and its tool
+# results mean the pane is working again.
+SUBAGENT_EVENTS = {"PreToolUse", "PermissionRequest", "PostToolUse", "PostToolUseFailure", "Notification"}
 
 
 def one_line(text, limit=MAX_TEXT):
@@ -93,9 +96,9 @@ def plan(payload):
     """
     if not isinstance(payload, dict):
         return None
-    if payload.get("agent_id"):
-        return None  # subagent context; the main agent owns the pane state
     event = payload.get("hook_event_name")
+    if payload.get("agent_id") and event not in SUBAGENT_EVENTS:
+        return None  # a subagent's turn/session events don't settle the main agent
 
     if event == "SessionStart":
         if payload.get("source") in SESSION_START_IDLE_SOURCES:

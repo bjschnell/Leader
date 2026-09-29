@@ -51,6 +51,20 @@ class UpdateTests(unittest.TestCase):
         s3 = m.update(s2, snap(agent("w1:p1", "done")), {}, {}, now=120)
         self.assertTrue(s3["w1:p1"]["since_known"])
 
+    def test_malformed_snapshot_entries_are_skipped(self):
+        s = m.update({}, {"workspaces": [{"label": "x"}], "tabs": None,
+                          "agents": [{"agent_status": "done"}, "junk", agent("w1:p1", "done", tokens="bad")]},
+                     {}, {}, now=1)
+        self.assertEqual(list(s), ["w1:p1"])
+        self.assertEqual(m.screen_checks_needed({"agents": [{"agent_status": "working"}]}), [])
+
+    def test_transition_across_restart_has_unknown_start(self):
+        restored = {"w1:p1": dict(m.update({}, snap(agent("w1:p1", "working")), {}, {}, now=1)["w1:p1"], restored=True)}
+        s = m.update(restored, snap(agent("w1:p1", "done")), {}, {}, now=50)
+        self.assertFalse(s["w1:p1"]["since_known"])
+        s = m.update(s, snap(agent("w1:p1", "working")), {}, {}, now=60)
+        self.assertTrue(s["w1:p1"]["since_known"])
+
     def test_ranking(self):
         s = m.update({}, snap(agent("w1:p4", "idle"), agent("w1:p3", "working")), {}, {}, now=1)
         s = m.update(s, snap(agent("w1:p4", "idle"), agent("w1:p3", "working"),

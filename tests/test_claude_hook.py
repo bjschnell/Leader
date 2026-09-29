@@ -67,7 +67,12 @@ class PlanTests(unittest.TestCase):
         self.assertIsNone(ch.plan(ev("PreToolUse", tool_name="Bash")))
         self.assertIsNone(ch.plan(ev("SubagentStop")))
         self.assertIsNone(ch.plan(ev("Stop", agent_id="sub-1")))  # subagent context
-        self.assertIsNone(ch.plan(ev("PostToolUse", tool_name="Bash", agent_id="sub-1")))
+        self.assertIsNone(ch.plan(ev("SessionStart", source="startup", agent_id="sub-1")))
+
+    def test_subagent_tool_events_count(self):
+        a = ch.plan(ev("PermissionRequest", tool_name="Bash", tool_input={"command": "ls"}, agent_id="sub-1"))
+        self.assertEqual(a["state"], "blocked")
+        self.assertEqual(ch.plan(ev("PostToolUse", tool_name="Bash", agent_id="sub-1"))["state"], "working")
         self.assertIsNone(ch.plan(ev("SomeFutureEvent")))
         self.assertIsNone(ch.plan("not a dict"))
 

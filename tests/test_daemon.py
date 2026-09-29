@@ -140,6 +140,23 @@ class DaemonTests(unittest.TestCase):
         other = d.Daemon(herdr.Client("/elsewhere.sock"), self.paths, "test", self.cfg)
         self.assertEqual(other.state, {})
 
+    def test_unexpected_errors_do_not_kill_the_loop(self):
+        calls = []
+        stop = {"flag": False}
+
+        def flaky():
+            calls.append(1)
+            if len(calls) == 2:
+                stop["flag"] = True
+            raise KeyError("snapshot")
+        self.daemon.step = flaky
+        d.time.sleep, real = (lambda s: None), d.time.sleep
+        try:
+            self.daemon.run_forever(stop)
+        finally:
+            d.time.sleep = real
+        self.assertEqual(len(calls), 2)
+
     def test_dead_herdr_raises_for_retry(self):
         dead = d.Daemon(herdr.Client("/nonexistent/herdr.sock"), self.paths, "test", self.cfg)
         with self.assertRaises(OSError):
@@ -149,6 +166,8 @@ class DaemonTests(unittest.TestCase):
         first = d.acquire_lock(self.paths.lock)
         self.assertIsNotNone(first)
         self.assertIsNone(d.acquire_lock(self.paths.lock))
+        with open(self.paths.lock) as fh:
+            self.assertEqual(fh.read(), str(os.getpid()))   # the failed attempt didn't wipe it
         first.close()
         again = d.acquire_lock(self.paths.lock)
         self.assertIsNotNone(again)

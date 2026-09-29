@@ -64,6 +64,11 @@ class RenderTests(unittest.TestCase):
         lines, _ = tui.render(doc, 80, 6, 15, False, now=100)
         self.assertEqual([s for _, s in lines].count("selected"), 1)
 
+    def test_interrupted_rows_stay_visible_without_idle_toggle(self):
+        doc = {"session": "x", "panes": {"a": entry("a", "idle", 1, interrupted=True), "b": entry("b", "idle", 1)}}
+        _, rows = tui.render(doc, 80, 6, 0, False, 10)
+        self.assertEqual([r["pane_id"] for r in rows], ["a"])
+
     def test_interrupted_marker(self):
         doc = {"session": "x", "panes": {"a": entry("a", "idle", 1, interrupted=True, summary="interrupted?")}}
         self.assertTrue(texts(tui.render(doc, 80, 5, 0, True, 10)[0])[1].startswith(" IDLE?"))

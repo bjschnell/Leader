@@ -15,15 +15,17 @@ DEFAULT_STALE_AFTER_S = 10.0
 
 
 def _labels(snapshot):
-    ws = {w["workspace_id"]: w.get("label") or w["workspace_id"] for w in snapshot.get("workspaces", [])}
-    tabs = {t["tab_id"]: t.get("label") or t["tab_id"] for t in snapshot.get("tabs", [])}
+    ws = {w.get("workspace_id"): w.get("label") or w.get("workspace_id") for w in snapshot.get("workspaces") or []
+          if isinstance(w, dict)}
+    tabs = {t.get("tab_id"): t.get("label") or t.get("tab_id") for t in snapshot.get("tabs") or []
+            if isinstance(t, dict)}
     return ws, tabs
 
 
 def screen_checks_needed(snapshot):
     """Pane ids whose hook-reported state should be cross-checked against the screen."""
-    return [a["pane_id"] for a in snapshot.get("agents", [])
-            if a.get("agent_status") in (WORKING, BLOCKED)]
+    return [a["pane_id"] for a in snapshot.get("agents") or []
+            if isinstance(a, dict) and a.get("pane_id") and a.get("agent_status") in (WORKING, BLOCKED)]
 
 
 def update(prev, snapshot, screen, dismissals, now, stale_after=DEFAULT_STALE_AFTER_S):
@@ -36,18 +38,21 @@ def update(prev, snapshot, screen, dismissals, now, stale_after=DEFAULT_STALE_AF
     """
     ws_labels, tab_labels = _labels(snapshot)
     out = {}
-    for agent in snapshot.get("agents", []):
+    for agent in snapshot.get("agents") or []:
+        if not isinstance(agent, dict) or not agent.get("pane_id"):
+            continue  # tolerate shapes from newer herdr versions
         pid = agent["pane_id"]
         old = prev.get(pid, {})
         status = agent.get("agent_status") or "unknown"
         seq = agent.get("state_change_seq")
-        tokens = agent.get("tokens") or {}
+        tokens = agent.get("tokens") if isinstance(agent.get("tokens"), dict) else {}
 
         if old.get("status") == status:
             since, since_known = old.get("since", now), old.get("since_known", False)
         else:
             # First sighting: herdr doesn't say how long the state has lasted.
-            since, since_known = now, bool(old)
+            # A transition seen across a daemon restart happened at an unknown time.
+            since, since_known = now, bool(old) and not old.get("restored")
 
         # Display-only reconciliation for hook gaps (Esc interrupt / Esc deny):
         # the screen shows an idle prompt while our authority still says busy.

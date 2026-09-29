@@ -48,7 +48,7 @@ def visible_rows(doc, show_idle, dismissals=None, overrides=None):
         if e and e["category"] == model.DONE and e["state_change_seq"] == seq:
             panes[pid] = dict(e, category=model.IDLE)
     rows = model.ranked(panes)
-    return rows if show_idle else [r for r in rows if r["category"] != model.IDLE]
+    return rows if show_idle else [r for r in rows if r["category"] != model.IDLE or r.get("interrupted")]
 
 
 def footer_counts(rows_all):
@@ -62,7 +62,7 @@ def footer_counts(rows_all):
 def render(doc, width, height, selected, show_idle, now, dismissals=None, status_line=None, overrides=None):
     """Return (lines, rows). lines[i] is (text, style) with style in {title,row,selected,dim,footer}."""
     rows_all = visible_rows(doc, True, dismissals, overrides)
-    rows = rows_all if show_idle else [r for r in rows_all if r["category"] != model.IDLE]
+    rows = rows_all if show_idle else [r for r in rows_all if r["category"] != model.IDLE or r.get("interrupted")]
     lines = [(f" herdr queue — {(doc or {}).get('session', '?')}", "title")]
     if doc is None:
         lines.append(("  waiting for herdr state…", "dim"))
@@ -120,7 +120,7 @@ class App:
         if self.embedded and time.time() - self.last_embedded >= min(1.0, float(self.cfg["poll_interval"])):
             try:
                 self.embedded.refresh()
-            except (OSError, herdr.HerdrError, ValueError) as exc:
+            except Exception as exc:  # keep the overlay alive; show why
                 self.flash(f" herdr unavailable: {exc}")
             self.last_embedded = time.time()
         return daemon_mod.read_json(self.paths.state, None)

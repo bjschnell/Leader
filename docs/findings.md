@@ -153,3 +153,11 @@ M3 / **OQ2 — resolved on 0.8.2 with a real attached client** (herdr TUI in a p
 - Tail reads happen once per (pane, state_change_seq, category) and only for BLOCKED/DONE rows without hook tokens.
 - AC3 with the summarizer imported on Stop: n=100, median 15.7 ms, max 41.5 ms.
 - Fixtures in tests/fixtures are real captures, sanitized (paths replaced).
+
+## 14. Review follow-up (independent code review, 2026-09-29)
+
+- **Subagent tool events now count.** Background subagents (`Agent` tool) raise their own permission dialogs in the same pane. Their hook payloads carry `agent_id`. Live: the main agent replied and stopped (`done`), then the subagent's Bash dialog appeared. With `PermissionRequest`/`PreToolUse`/`PostToolUse*`/`Notification` honoured for subagents, the pane went `blocked` → (approve) → `working` → `done` correctly. Subagent `Stop`/`SessionStart`/etc. are still ignored.
+- A late `permission_prompt` Notification re-blocking a working pane was **not observed**. When the dialog is answered within ~1 s, Claude doesn't send it at all.
+- A false "interrupted" verdict on a real permission dialog was **not observed**: a Bash dialog left open 4+ min stayed BLOCKED (screen verdict `blocked`). Interrupted rows are now always visible anyway, not hidden with idle rows.
+- The daemon survives any exception (backoff loop). Malformed snapshot entries from newer herdr versions are skipped.
+- The installer follows a symlinked settings.json and keeps backups unique. The lock file keeps the running daemon's PID. Ages observed across a daemon restart are marked `+`.

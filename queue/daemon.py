@@ -30,6 +30,7 @@ GLOBAL_EVENTS = [
 ]
 DEBOUNCE_S = 0.05
 STALE_POLL_S = 1.0
+MIN_POLL_S = 0.2
 
 
 def read_json(path, default):
@@ -69,7 +70,8 @@ class Daemon:
         self.cfg = cfg
         self.clock = clock
         persisted = read_json(paths.state, {})
-        self.state = persisted.get("panes", {}) if persisted.get("socket") == client.socket_path else {}
+        panes = persisted.get("panes") if persisted.get("socket") == client.socket_path else None
+        self.state = {pid: dict(e, restored=True) for pid, e in (panes or {}).items() if isinstance(e, dict)}
         self.sub = None
         self.sub_panes = None
         self.last_written = None
@@ -149,7 +151,8 @@ class Daemon:
 
     def wait_timeout(self):
         busy = any(e["screen_idle_since"] is not None and not e["interrupted"] for e in self.state.values())
-        return min(float(self.cfg["poll_interval"]), STALE_POLL_S) if busy else float(self.cfg["poll_interval"])
+        poll = max(MIN_POLL_S, float(self.cfg["poll_interval"]))
+        return min(poll, STALE_POLL_S) if busy else poll
 
     def step(self):
         """Refresh, (re)subscribe, then block until a poke or the poll interval."""
@@ -170,7 +173,7 @@ class Daemon:
             try:
                 self.step()
                 backoff = 1.0
-            except (OSError, herdr.HerdrError, ValueError) as exc:
+            except Exception as exc:  # never die: herdr restarts, upgrades, odd data
                 self.close()
                 print(f"herdr-queue: {exc}; retrying in {backoff:.0f}s", file=sys.stderr, flush=True)
                 time.sleep(backoff)
@@ -179,12 +182,14 @@ class Daemon:
 
 
 def acquire_lock(path):
-    fh = open(path, "w")
+    fh = open(path, "a+")
     try:
         fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         fh.close()
         return None
+    fh.seek(0)
+    fh.truncate()
     fh.write(str(os.getpid()))
     fh.flush()
     return fh
@@ -208,8 +213,12 @@ def main(argv=None):
         if lock is not None:  # no daemon running: we are the only writer
             daemon.refresh()
             lock.close()
-        with open(paths.state, encoding="utf-8") as fh:
-            sys.stdout.write(fh.read())
+        try:
+            with open(paths.state, encoding="utf-8") as fh:
+                sys.stdout.write(fh.read())
+        except FileNotFoundError:
+            print(f"herdr-queue: no state yet for session {session}", file=sys.stderr)
+            return 1
         return 0
     if lock is None:
         print(f"herdr-queue: daemon already running for session {session}", file=sys.stderr)

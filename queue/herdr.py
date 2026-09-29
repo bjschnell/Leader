@@ -75,7 +75,7 @@ class Client:
             raise HerdrError("empty_response", method)
         resp = json.loads(line)
         if "error" in resp:
-            err = resp["error"] or {}
+            err = resp["error"] if isinstance(resp["error"], dict) else {"message": str(resp["error"])}
             raise HerdrError(err.get("code", "error"), err.get("message", ""))
         return resp.get("result", {})
 

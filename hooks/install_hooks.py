@@ -106,8 +106,9 @@ def load(path):
 
 
 def write(path, data):
+    path = os.path.realpath(path)  # keep a dotfiles-managed symlink pointing at the real file
     if os.path.exists(path):
-        backup = f"{path}.bak.herdr-queue.{time.strftime('%Y%m%d-%H%M%S')}"
+        backup = f"{path}.bak.herdr-queue.{time.strftime('%Y%m%d-%H%M%S')}.{time.time_ns() % 1_000_000_000:09d}"
         shutil.copy2(path, backup)
         print(f"backup: {backup}")
     directory = os.path.dirname(path) or "."
