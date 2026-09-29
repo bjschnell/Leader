@@ -1,5 +1,5 @@
-id = "bjschnell.herdr-queue"
-name = "herdr-queue (Leader)"
+id = "bjschnell.leader"
+name = "Leader"
 version = "0.1.0"
 min_herdr_version = "0.8.2"
 description = "Ranked queue of agents waiting on you, with one-line 'what it needs' and jump-to-pane"
@@ -20,7 +20,7 @@ command = ["python3", "queue/tui.py"]
 #   [[keys.command]]
 #   key = "prefix+a"
 #   type = "plugin_action"
-#   command = "bjschnell.herdr-queue.open"
+#   command = "bjschnell.leader.open"
 [[actions]]
 id = "open"
 title = "Open agent queue"

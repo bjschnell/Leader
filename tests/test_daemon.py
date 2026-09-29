@@ -67,8 +67,8 @@ class DaemonTests(unittest.TestCase):
             return json.load(fh)
 
     def test_refresh_writes_ranked_state(self):
-        self.world.agents = [agent("w1:p1", "done", tokens={"hq_last": "shipped"}),
-                             agent("w1:p2", "blocked", tokens={"hq_msg": "Permission: Bash x", "hq_kind": "permission"})]
+        self.world.agents = [agent("w1:p1", "done", tokens={"leader_last": "shipped"}),
+                             agent("w1:p2", "blocked", tokens={"leader_msg": "Permission: Bash x", "leader_kind": "permission"})]
         self.world.screen = {"w1:p2": "blocked"}
         self.daemon.refresh()
         s = self.state()
@@ -92,7 +92,7 @@ class DaemonTests(unittest.TestCase):
         self.assertEqual(self.world.reads, ["w1:p1", "w1:p1"])
 
     def test_hook_tokens_avoid_tail_reads(self):
-        self.world.agents = [agent("w1:p1", "blocked", tokens={"hq_msg": "Tabs or spaces?", "hq_kind": "question"})]
+        self.world.agents = [agent("w1:p1", "blocked", tokens={"leader_msg": "Tabs or spaces?", "leader_kind": "question"})]
         self.daemon.refresh()
         self.assertEqual(self.world.reads, [])
 

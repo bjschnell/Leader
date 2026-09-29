@@ -10,7 +10,7 @@ state_change_seq so any new report (e.g. a new turn) invalidates it.
 BLOCKED, DONE, WORKING, IDLE = "blocked", "done", "working", "idle"
 RANK = {BLOCKED: 0, DONE: 1, WORKING: 2, IDLE: 3}
 
-MSG_TOKEN, LAST_TOKEN, KIND_TOKEN = "hq_msg", "hq_last", "hq_kind"
+MSG_TOKEN, LAST_TOKEN, KIND_TOKEN = "leader_msg", "leader_last", "leader_kind"
 DEFAULT_STALE_AFTER_S = 10.0
 
 

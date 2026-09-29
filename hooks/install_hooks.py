@@ -1,4 +1,4 @@
-"""Merge / remove herdr-queue hook entries in a Claude Code settings.json.
+"""Merge / remove leader hook entries in a Claude Code settings.json.
 
 Our entries are recognised by their command string (the absolute path of
 claude-hook.sh). Nothing else in the file is touched. Every write is preceded
@@ -108,7 +108,7 @@ def load(path):
 def write(path, data):
     path = os.path.realpath(path)  # keep a dotfiles-managed symlink pointing at the real file
     if os.path.exists(path):
-        backup = f"{path}.bak.herdr-queue.{time.strftime('%Y%m%d-%H%M%S')}.{time.time_ns() % 1_000_000_000:09d}"
+        backup = f"{path}.bak.leader.{time.strftime('%Y%m%d-%H%M%S')}.{time.time_ns() % 1_000_000_000:09d}"
         shutil.copy2(path, backup)
         print(f"backup: {backup}")
     directory = os.path.dirname(path) or "."
@@ -123,7 +123,7 @@ def write(path, data):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Install or remove herdr-queue Claude Code hooks.")
+    ap = argparse.ArgumentParser(description="Install or remove leader Claude Code hooks.")
     ap.add_argument("action", choices=["install", "uninstall"])
     ap.add_argument("--settings", default=default_settings_path(), help="settings.json to edit")
     ap.add_argument("--dry-run", action="store_true", help="print the resulting JSON, write nothing")
@@ -144,7 +144,7 @@ def main(argv=None):
         print(json.dumps(after, indent=2))
         return 0
     write(args.settings, after)
-    print(f"{args.settings}: {args.action}ed herdr-queue hooks ({HOOK_SCRIPT})")
+    print(f"{args.settings}: {args.action}ed leader hooks ({HOOK_SCRIPT})")
     return 0
 
 

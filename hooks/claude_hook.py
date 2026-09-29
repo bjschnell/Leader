@@ -14,15 +14,15 @@ import socket
 import sys
 import time
 
-SOURCE = "custom:herdr-queue"
-META_SOURCE = "custom:herdr-queue-meta"
+SOURCE = "custom:leader"
+META_SOURCE = "custom:leader-meta"
 AGENT = "claude"
 SOCKET_TIMEOUT_S = 0.3     # connect + send
 REPLY_WAIT_S = 0.025       # herdr applies requests even if we hang up; it sometimes
                             # stalls ~100 ms before replying, which Claude should not pay for
-MSG_TOKEN = "hq_msg"      # what a blocked agent needs (or null)
-LAST_TOKEN = "hq_last"    # last assistant line when a turn ends
-KIND_TOKEN = "hq_kind"    # why blocked: permission | question | input (or null)
+MSG_TOKEN = "leader_msg"      # what a blocked agent needs (or null)
+LAST_TOKEN = "leader_last"    # last assistant line when a turn ends
+KIND_TOKEN = "leader_kind"    # why blocked: permission | question | input (or null)
 TOKEN_TTL_MS = 86_400_000  # herdr maximum; tokens are cleared on transitions anyway
 MAX_TEXT = 200            # herdr caps presentation text at 80; keep a bit more for the daemon
 
@@ -176,7 +176,7 @@ def send(socket_path, reqs, timeout=SOCKET_TIMEOUT_S):
         client.settimeout(timeout)
         try:
             client.connect(socket_path)
-            req = {"id": f"herdr-queue:{os.getpid()}:{i}", "method": method, "params": params}
+            req = {"id": f"leader:{os.getpid()}:{i}", "method": method, "params": params}
             client.sendall((json.dumps(req) + "\n").encode())
             client.settimeout(REPLY_WAIT_S)
             try:
@@ -188,7 +188,7 @@ def send(socket_path, reqs, timeout=SOCKET_TIMEOUT_S):
 
 
 def debug_log(line):
-    path = os.environ.get("HERDR_QUEUE_HOOK_LOG")
+    path = os.environ.get("LEADER_HOOK_LOG")
     if not path:
         return
     try:

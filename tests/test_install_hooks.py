@@ -74,7 +74,7 @@ class CliTests(unittest.TestCase):
             return json.load(fh)
 
     def backups(self):
-        return glob.glob(self.path + ".bak.herdr-queue.*")
+        return glob.glob(self.path + ".bak.leader.*")
 
     def test_dry_run_writes_nothing(self):
         rc, out = self.run_cli("install", "--dry-run")
@@ -116,7 +116,7 @@ class CliTests(unittest.TestCase):
     def test_backups_in_the_same_second_do_not_collide(self):
         self.run_cli("install")
         self.run_cli("uninstall")
-        self.assertEqual(len(glob.glob(self.path + ".bak.herdr-queue.*")), 2)
+        self.assertEqual(len(glob.glob(self.path + ".bak.leader.*")), 2)
 
     def test_invalid_json_is_left_alone(self):
         with open(self.path, "w") as fh:

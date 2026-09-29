@@ -1,5 +1,7 @@
 # herdr-queue — SPEC (v0.1 draft)
 
+> **Renamed to Leader** (2026-09-29): plugin id `bjschnell.leader`, config `$XDG_CONFIG_HOME/leader/`, state `$XDG_STATE_HOME/leader/`, herdr sources `custom:leader*`, pane tokens `leader_*`. The spec text below keeps the original working name.
+
 A local-only herdr plugin that answers one question: **"which of my agents is waiting on me, and what does it need?"**
 
 ## 1. Problem

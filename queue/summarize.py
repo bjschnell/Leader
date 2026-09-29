@@ -1,9 +1,9 @@
 """One-line "what does it need / what did it finish" summaries (v1: heuristics, no LLM).
 
 Sources, best first:
-  BLOCKED: the hook's message (hq_msg) > last question-like line in the pane tail
+  BLOCKED: the hook's message (leader_msg) > last question-like line in the pane tail
            (with the pending command, if visible) > last meaningful line.
-  DONE:    the hook's pick from the final assistant message (hq_last) >
+  DONE:    the hook's pick from the final assistant message (leader_last) >
            the same pick over the last assistant block in the pane tail.
 Pane tails come from `pane.read recent_unwrapped`; Claude Code's UI chrome
 (logo, rules, prompt box, status lines, dialog options) is stripped first.
@@ -134,13 +134,13 @@ def summarize(category, tokens, read_tail=None, limit=MAX_LEN):
     """category: model category; tokens: pane tokens; read_tail: () -> str, called only if needed."""
     tokens = tokens or {}
     if category == "blocked":
-        if tokens.get("hq_msg"):
-            return truncate(tokens["hq_msg"], limit)
+        if tokens.get("leader_msg"):
+            return truncate(tokens["leader_msg"], limit)
         tail = _safe(read_tail)
         return blocked_from_tail(tail, limit) if tail else None
     if category in ("done", "idle"):
-        if tokens.get("hq_last"):
-            return truncate(tokens["hq_last"], limit)
+        if tokens.get("leader_last"):
+            return truncate(tokens["leader_last"], limit)
         tail = _safe(read_tail)
         block = last_assistant_block(tail) if tail else None
         return pick_summary_line(block, limit) if block else None

@@ -1,4 +1,4 @@
-"""herdr-queue overlay: a ranked list of agents that need you.
+"""leader overlay: a ranked list of agents that need you.
 
 Reads state.json written by the daemon. If no daemon holds the lock for this
 session, the TUI takes it and refreshes in-process while open, so there is
@@ -63,7 +63,7 @@ def render(doc, width, height, selected, show_idle, now, dismissals=None, status
     """Return (lines, rows). lines[i] is (text, style) with style in {title,row,selected,dim,footer}."""
     rows_all = visible_rows(doc, True, dismissals, overrides)
     rows = rows_all if show_idle else [r for r in rows_all if r["category"] != model.IDLE or r.get("interrupted")]
-    lines = [(f" herdr queue — {(doc or {}).get('session', '?')}", "title")]
+    lines = [(f" Leader — {(doc or {}).get('session', '?')}", "title")]
     if doc is None:
         lines.append(("  waiting for herdr state…", "dim"))
     elif not rows:
@@ -206,7 +206,7 @@ def run(stdscr, app):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="herdr-queue overlay")
+    ap = argparse.ArgumentParser(description="leader overlay")
     ap.add_argument("--session")
     ap.add_argument("--config")
     ap.add_argument("--print", action="store_true", help="render once to stdout (no curses) and exit")

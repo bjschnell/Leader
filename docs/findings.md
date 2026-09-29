@@ -1,5 +1,7 @@
 # M0 findings
 
+> The project was renamed **Leader** after M4. Sections below keep the identifiers as they were at the time: `custom:herdr-queue` is now `custom:leader`, the `hq_msg`/`hq_last`/`hq_kind` tokens are now `leader_msg`/`leader_last`/`leader_kind`, plugin `bjschnell.herdr-queue` is now `bjschnell.leader`, and the state/config dirs `herdr-queue/` are now `leader/`.
+
 Verified 2026-09-28 against herdr **0.8.2** (protocol 20, `herdr api schema --json` schema_version 1), Claude Code **2.1.284**, Python 3.14.7.
 Sources: `herdr --skill`, `herdr api schema --json`, `herdr <group>` help, strings of the installed binary, herdr.dev/docs/{plugins,agents,socket-api}, code.claude.com/docs/en/hooks.
 All live experiments ran in an isolated session (`herdr --session herdr-queue-dev server`), with `HERDR_SOCKET_PATH` pinned to its socket and `HERDR_PANE_ID`/`HERDR_TAB_ID`/`HERDR_WORKSPACE_ID` unset.

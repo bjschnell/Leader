@@ -37,7 +37,7 @@ class RenderTests(unittest.TestCase):
         lines, rows = tui.render(DOC, 100, 12, 0, False, now=600)
         self.assertEqual([r["pane_id"] for r in rows], ["w1:p5", "w1:p2", "w1:p3", "w1:p1"])
         out = texts(lines)
-        self.assertIn("herdr queue — dev", out[0])
+        self.assertIn("Leader — dev", out[0])
         self.assertTrue(out[1].startswith(" BLOCKED"))
         self.assertIn("6m", out[1])                       # blocked since 200, now 600
         self.assertIn("— Tabs or spaces?", out[1])

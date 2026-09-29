@@ -1,4 +1,4 @@
-"""herdr-queue daemon: keeps <state_dir>/state.json current for one herdr session.
+"""leader daemon: keeps <state_dir>/state.json current for one herdr session.
 
 Pattern (docs/findings.md §4): events are pokes, the snapshot is authoritative.
 Subscribe (global lifecycle + per-pane status), snapshot, recompute, write;
@@ -175,7 +175,7 @@ class Daemon:
                 backoff = 1.0
             except Exception as exc:  # never die: herdr restarts, upgrades, odd data
                 self.close()
-                print(f"herdr-queue: {exc}; retrying in {backoff:.0f}s", file=sys.stderr, flush=True)
+                print(f"leader: {exc}; retrying in {backoff:.0f}s", file=sys.stderr, flush=True)
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 10.0)
         self.close()
@@ -196,7 +196,7 @@ def acquire_lock(path):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="herdr-queue state daemon")
+    ap = argparse.ArgumentParser(description="leader state daemon")
     ap.add_argument("--session", help="herdr session name (default: the injected one)")
     ap.add_argument("--config", help="config.toml path")
     ap.add_argument("--once", action="store_true", help="write state once, print it, exit")
@@ -217,11 +217,11 @@ def main(argv=None):
             with open(paths.state, encoding="utf-8") as fh:
                 sys.stdout.write(fh.read())
         except FileNotFoundError:
-            print(f"herdr-queue: no state yet for session {session}", file=sys.stderr)
+            print(f"leader: no state yet for session {session}", file=sys.stderr)
             return 1
         return 0
     if lock is None:
-        print(f"herdr-queue: daemon already running for session {session}", file=sys.stderr)
+        print(f"leader: daemon already running for session {session}", file=sys.stderr)
         return 0
     stop = {"flag": False}
 

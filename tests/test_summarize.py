@@ -63,14 +63,14 @@ class SummarizeTests(unittest.TestCase):
     def test_hook_tokens_win_and_tail_is_not_read(self):
         def boom():
             raise AssertionError("tail read")
-        self.assertEqual(s.summarize("blocked", {"hq_msg": "Permission: Bash x"}, boom), "Permission: Bash x")
-        self.assertEqual(s.summarize("done", {"hq_last": "All green."}, boom), "All green.")
+        self.assertEqual(s.summarize("blocked", {"leader_msg": "Permission: Bash x"}, boom), "Permission: Bash x")
+        self.assertEqual(s.summarize("done", {"leader_last": "All green."}, boom), "All green.")
 
     def test_tail_fallback_and_failures(self):
         self.assertEqual(s.summarize("blocked", {}, lambda: fixture("tail_blocked_bash.txt")),
                          "Do you want to proceed? — touch acc.txt")
         self.assertIsNone(s.summarize("done", {}, lambda: (_ for _ in ()).throw(OSError("gone"))))
-        self.assertIsNone(s.summarize("working", {"hq_last": "x"}, None))
+        self.assertIsNone(s.summarize("working", {"leader_last": "x"}, None))
 
 
 if __name__ == "__main__":

@@ -23,9 +23,9 @@ def snap(*agents):
 class UpdateTests(unittest.TestCase):
     def test_categories_labels_and_summaries(self):
         s = m.update({}, snap(
-            agent("w1:p1", "blocked", tokens={"hq_msg": "Permission: Bash rm x", "hq_kind": "permission"}),
-            agent("w1:p2", "done", tab="w1:t2", tokens={"hq_last": "All tests pass."}),
-            agent("w1:p3", "working", tokens={"hq_last": "old"}),
+            agent("w1:p1", "blocked", tokens={"leader_msg": "Permission: Bash rm x", "leader_kind": "permission"}),
+            agent("w1:p2", "done", tab="w1:t2", tokens={"leader_last": "All tests pass."}),
+            agent("w1:p3", "working", tokens={"leader_last": "old"}),
             agent("w1:p4", "idle"),
             agent("w1:p5", "unknown"),
         ), {}, {}, now=100)
@@ -109,11 +109,11 @@ class StaleTests(unittest.TestCase):
         self.assertEqual(cats, ["working", "working", "working", "working"])
 
     def test_blocked_permission_goes_stale_but_question_never_does(self):
-        cats, _ = self.run_seq("blocked", {"hq_kind": "permission", "hq_msg": "Permission: Bash x"},
+        cats, _ = self.run_seq("blocked", {"leader_kind": "permission", "leader_msg": "Permission: Bash x"},
                                [(0, "idle"), (11, "idle")])
         self.assertEqual(cats, ["blocked", "idle"])
         # herdr's screen manifest reads an open AskUserQuestion dialog as idle: must stay blocked
-        cats, _ = self.run_seq("blocked", {"hq_kind": "question", "hq_msg": "Tabs or spaces?"},
+        cats, _ = self.run_seq("blocked", {"leader_kind": "question", "leader_msg": "Tabs or spaces?"},
                                [(0, "idle"), (60, "idle")])
         self.assertEqual(cats, ["blocked", "blocked"])
         cats, _ = self.run_seq("blocked", {}, [(0, "idle"), (60, "idle")])  # screen-detected blocked

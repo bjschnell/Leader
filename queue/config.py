@@ -1,8 +1,8 @@
 """Config and state paths.
 
 Config: $HERDR_PLUGIN_CONFIG_DIR/config.toml when running as a herdr plugin,
-else $XDG_CONFIG_HOME/herdr-queue/config.toml. State lives per herdr session
-under $XDG_STATE_HOME/herdr-queue/<session>.
+else $XDG_CONFIG_HOME/leader/config.toml. State lives per herdr session
+under $XDG_STATE_HOME/leader/<session>.
 """
 
 import copy
@@ -28,7 +28,7 @@ def config_path(environ=None):
     if environ.get("HERDR_PLUGIN_CONFIG_DIR"):
         return os.path.join(environ["HERDR_PLUGIN_CONFIG_DIR"], "config.toml")
     return os.path.join(environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
-                        "herdr-queue", "config.toml")
+                        "leader", "config.toml")
 
 
 def _merge(base, over):
@@ -54,7 +54,7 @@ def state_dir(session, environ=None):
     # Deliberately not $HERDR_PLUGIN_STATE_DIR: a daemon started from a shell and
     # an overlay started by herdr must find the same state.json and lock.
     environ = os.environ if environ is None else environ
-    base = os.path.join(environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "herdr-queue")
+    base = os.path.join(environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "leader")
     path = os.path.join(base, session)
     os.makedirs(path, mode=0o700, exist_ok=True)
     return path

@@ -1,5 +1,5 @@
 #!/bin/sh
-# herdr-queue: Claude Code hook -> herdr pane lifecycle state.
+# leader: Claude Code hook -> herdr pane lifecycle state.
 # Silent, always exits 0, no-op outside herdr. Installed by install-hooks.sh.
 [ "${HERDR_ENV:-}" = "1" ] || exit 0
 [ -n "${HERDR_PANE_ID:-}" ] || exit 0

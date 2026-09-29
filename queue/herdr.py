@@ -62,7 +62,7 @@ class Client:
 
     def call(self, method, params=None):
         self._n += 1
-        req = {"id": f"herdr-queue:{os.getpid()}:{self._n}", "method": method, "params": params or {}}
+        req = {"id": f"leader:{os.getpid()}:{self._n}", "method": method, "params": params or {}}
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(self.timeout)
         try:
@@ -106,7 +106,7 @@ class Subscription:
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.settimeout(CALL_TIMEOUT_S)
         self.sock.connect(socket_path)
-        req = {"id": "herdr-queue:sub", "method": "events.subscribe",
+        req = {"id": "leader:sub", "method": "events.subscribe",
                "params": {"subscriptions": subscriptions}}
         self.sock.sendall((json.dumps(req) + "\n").encode())
         self._buf = b""
