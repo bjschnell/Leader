@@ -14,7 +14,15 @@ DEFAULTS = {
     "poll_interval": 2.0,      # seconds; a missed event costs at most this much
     "stale_after": 10.0,       # seconds of idle screen before a busy pane is shown as interrupted
     "tail_lines": 80,
-    "summaries": {"llm": False, "model": "haiku", "max_calls_per_min": 6, "timeout": 20},
+    "summaries": {
+        "llm": False,              # opt-in: one `claude -p` call per transition into blocked/done
+        "model": "haiku",          # any model name `claude --model` accepts
+        "command": "claude",
+        "extra_args": [],          # e.g. ["--bare"] when authenticating with ANTHROPIC_API_KEY
+        "env": {},                 # e.g. {AWS_PROFILE = "work", AWS_REGION = "us-west-2"} for Bedrock
+        "max_calls_per_min": 6,
+        "timeout": 20,
+    },
     "redaction_patterns": [],
 }
 

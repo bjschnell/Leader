@@ -40,7 +40,30 @@ The daemon (`queue/daemon.py`, also started by the plugin's `[[startup]]` hook) 
 
 ## Summaries (M4)
 
-Every waiting row gets a one-line reason. Hooked Claude panes use the hook's text: the permission or question for BLOCKED, and the most summary-like line of the final reply for DONE. Other agents fall back to heuristics over the pane tail. `r` in the overlay re-summarizes the selected row from its tail. There are no LLM calls (the M5 option is off and not implemented).
+Every waiting row gets a one-line reason. Hooked Claude panes use the hook's text: the permission or question for BLOCKED, and the most summary-like line of the final reply for DONE. Other agents fall back to heuristics over the pane tail. `r` in the overlay re-summarizes the selected row from its tail. Optional AI summaries are described below.
+
+## AI summaries (M5, off by default)
+
+Set in `~/.config/leader/config.toml`:
+
+```toml
+[summaries]
+llm = true
+model = "haiku"            # anything `claude --model` accepts
+# env = { AWS_PROFILE = "work", AWS_REGION = "us-west-2" }   # Bedrock, if the daemon's environment lacks it
+# extra_args = ["--bare"]  # only with ANTHROPIC_API_KEY auth; --bare disables OAuth/keychain login
+max_calls_per_min = 6
+timeout = 20
+# redaction_patterns = ["corp-[0-9]+"]   # extra regexes to scrub before sending
+```
+
+How it behaves:
+- **When:** one call per transition into DONE (or into BLOCKED when no exact hook message exists). Never on a timer. The result is kept in state.json, so a restart doesn't pay again.
+- **Path:** runs your own `claude -p` with no tools, no MCP servers, no slash commands and no session persistence. Pane content leaves the machine only through the Claude Code / Bedrock path your agents already use. Leader opens no other network connection, and with `llm = false` it runs no subprocess at all.
+- **What is sent:** the last turn of the pane (the final user prompt onward, UI chrome stripped), after redacting keys, tokens, passwords, bearer headers, JWTs, private keys and URL credentials.
+- **Failure:** timeouts, errors and rate-limit hits keep the heuristic line.
+
+
 
 ## Development
 
@@ -48,4 +71,5 @@ Every waiting row gets a one-line reason. Hooked Claude panes use the hook's tex
 python3 -m unittest discover -s tests
 scripts/dev-server         # isolated herdr universe (own config, plugin registry, sockets)
 scripts/dev-herdr <args>   # herdr CLI pinned to that dev session
+scripts/dev-leader daemon|tui [args]   # Leader tools pinned to that dev session
 ```

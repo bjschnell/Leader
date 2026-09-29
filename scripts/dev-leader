@@ -1,0 +1,7 @@
+#!/bin/sh
+# Run a Leader tool (daemon.py / tui.py) against the isolated dev session only.
+# Usage: scripts/dev-leader daemon|tui [args...]
+. "$(dirname "$0")/dev-env"
+tool="$1"; shift
+exec env -u HERDR_PANE_ID -u HERDR_TAB_ID -u HERDR_WORKSPACE_ID HERDR_SOCKET_PATH="$DEV_SOCK" \
+  python3 "$(dirname "$0")/../queue/$tool.py" "$@"

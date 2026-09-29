@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import config  # noqa: E402
 import herdr  # noqa: E402
+import llm  # noqa: E402
 import model  # noqa: E402
 import summarize  # noqa: E402
 
@@ -76,6 +77,10 @@ class Daemon:
         self.sub_panes = None
         self.last_written = None
         self.summary_cache = {}
+        self.llm = llm.LLMSummarizer(cfg)
+        for pid, e in self.state.items():  # don't pay twice for a summary we already have
+            if isinstance(e.get("llm"), list) and len(e["llm"]) == 3:
+                self.llm.seed((pid, e["llm"][0], e["llm"][1]), e["llm"][2])
 
     def refresh(self):
         """One snapshot -> state.json pass. Returns the snapshot's agent pane ids."""
@@ -111,21 +116,35 @@ class Daemon:
         return {a["pane_id"] for a in snapshot.get("agents", [])}
 
     def fill_summaries(self, snapshot):
-        """Pane-tail heuristics for BLOCKED/DONE rows the hooks didn't describe
-        (e.g. screen-detected agents). Cached per transition, so each tail is read once."""
-        tokens = {a["pane_id"]: a.get("tokens") or {} for a in snapshot.get("agents", [])}
+        """One line per BLOCKED/DONE row: hook text, else pane-tail heuristics (cached per
+        transition, so each tail is read once). With summaries.llm on, an LLM line replaces
+        it once ready, except for BLOCKED rows whose hook text is already exact."""
+        tokens = {a.get("pane_id"): a.get("tokens") or {} for a in snapshot.get("agents") or []
+                  if isinstance(a, dict)}
+        lines = int(self.cfg["tail_lines"])
         live = set()
         for pid, entry in self.state.items():
-            if entry["category"] not in (model.BLOCKED, model.DONE) or entry["summary"]:
+            if entry["category"] not in (model.BLOCKED, model.DONE):
                 continue
             key = (pid, entry["state_change_seq"], entry["category"])
             live.add(key)
-            if key not in self.summary_cache:
-                lines = int(self.cfg["tail_lines"])
-                self.summary_cache[key] = summarize.summarize(
-                    entry["category"], tokens.get(pid), lambda: self.client.read(pid, lines=lines))
-            entry["summary"] = self.summary_cache[key]
+
+            def read_tail(pid=pid):
+                return self.client.read(pid, lines=lines)
+
+            if not entry["summary"]:
+                if key not in self.summary_cache:
+                    self.summary_cache[key] = summarize.summarize(entry["category"], tokens.get(pid), read_tail)
+                entry["summary"] = self.summary_cache[key]
+            if entry["category"] == model.BLOCKED and (tokens.get(pid) or {}).get(model.MSG_TOKEN):
+                continue
+            self.llm.request(key, entry["category"], read_tail, hint=entry["summary"])
+            text = self.llm.get(key)
+            if text:
+                entry["summary"] = text
+                entry["llm"] = [entry["state_change_seq"], entry["category"], text]
         self.summary_cache = {k: v for k, v in self.summary_cache.items() if k in live}
+        self.llm.prune(live)
 
     def touch(self, now):
         """Heartbeat so readers can tell a live daemon from a stale file."""
@@ -152,7 +171,7 @@ class Daemon:
     def wait_timeout(self):
         busy = any(e["screen_idle_since"] is not None and not e["interrupted"] for e in self.state.values())
         poll = max(MIN_POLL_S, float(self.cfg["poll_interval"]))
-        return min(poll, STALE_POLL_S) if busy else poll
+        return min(poll, STALE_POLL_S) if busy or self.llm.busy() else poll
 
     def step(self):
         """Refresh, (re)subscribe, then block until a poke or the poll interval."""

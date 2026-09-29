@@ -163,3 +163,13 @@ M3 / **OQ2 — resolved on 0.8.2 with a real attached client** (herdr TUI in a p
 - A false "interrupted" verdict on a real permission dialog was **not observed**: a Bash dialog left open 4+ min stayed BLOCKED (screen verdict `blocked`). Interrupted rows are now always visible anyway, not hidden with idle rows.
 - The daemon survives any exception (backoff loop). Malformed snapshot entries from newer herdr versions are skipped.
 - The installer follows a symlinked settings.json and keeps backups unique. The lock file keeps the running daemon's PID. Ages observed across a daemon restart are marked `+`.
+
+## 15. M5 live results (2026-09-29, Claude Code 2.1.285, `claude -p --model haiku`)
+
+- Locked-down call: `claude -p --tools "" --no-session-persistence --disable-slash-commands --strict-mcp-config --model haiku <prompt>`, with the tail on stdin. It works with the Claude Pro OAuth login. `--bare` isn't used by default because it only accepts `ANTHROPIC_API_KEY`/`apiKeyHelper` auth.
+- The child environment has `HERDR_*` removed. The logging wrapper confirmed 0 `HERDR_*` vars, so our own hook stays silent during summary calls.
+- Latency ≈5–6 s after the transition (the heuristic line shows in the meantime). One call per DONE transition. BLOCKED rows with an exact hook message make no call.
+- Sending the whole tail made the model summarize earlier turns ("…migrations **and** CI caching"). It now gets only the last turn: "Agent finished the task: named Australia's capital (Canberra) in one sentence".
+- Models sometimes prefix `**Summary:**`, which `clean_output` strips.
+- **`[[startup]]` runs on session restore** (observed: restarting the dev server started the plugin daemon). The flock single-instance guard made a second daemon exit cleanly.
+- Operator note: with no `HERDR_SOCKET_PATH` and no `--session`, the tools fall back to the `default` session (intended for a user at a shell). During testing that happened once by accident: read-only snapshot/explain calls, no pane text read, no LLM. The local state file was deleted. `scripts/dev-leader` now pins dev runs to the isolated session.

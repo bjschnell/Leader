@@ -31,6 +31,11 @@ class PickSummaryLineTests(unittest.TestCase):
         msg = "## Result\nThe migration now runs in `3s` instead of\n  40s on the staging dataset."
         self.assertEqual(s.pick_summary_line(msg), "The migration now runs in 3s instead of 40s on the staging dataset.")
 
+    def test_wrapped_bullet_continuation_is_not_mistaken_for_prose(self):
+        msg = ("- A reversible migration lets you roll the schema back\n  with the code.\n"
+               "- It makes deploys safer.\n- It keeps dev databases in sync.")
+        self.assertEqual(s.pick_summary_line(msg), "- A reversible migration lets you roll the schema back with the code.")
+
     def test_truncates(self):
         self.assertEqual(len(s.pick_summary_line("Done " + "x" * 300)), s.MAX_LEN)
 
@@ -49,10 +54,19 @@ class TailTests(unittest.TestCase):
         self.assertNotIn("Sautéed", block)               # spinner/footer stripped
         self.assertNotIn("manual mode", block)
 
-    def test_done_list_uses_last_line_when_no_intro_visible(self):
+    def test_done_list_uses_first_visible_item_when_no_intro_visible(self):
         # The intro scrolled out of the captured tail; only list items remain.
         got = s.summarize("done", {}, lambda: fixture("tail_done_list.txt"))
-        self.assertEqual(got, "250. Aphid")
+        self.assertEqual(got, "217. Ant")
+
+    def test_last_turn_only(self):
+        tail = ("❯ first question\n● first answer\n❯ Why cache deps in CI?\n● - Faster builds\n"
+                "✻ Baked for 3s\n────\n❯ \n────\n  ⏸ manual mode on\n")
+        self.assertEqual(s.last_turn(tail), "❯ Why cache deps in CI?\n● - Faster builds")
+
+    def test_negated_have_is_not_a_conclusion(self):
+        msg = "Created notes.md.\n\nI haven't committed it.\n\nNext: open a PR."
+        self.assertEqual(s.pick_summary_line(msg), "Created notes.md.")
 
     def test_chrome_only_tail(self):
         tail = "────\n❯ \n────\n  ⏸ manual mode on\n  session:0m | ctx:[----------]4%\n"

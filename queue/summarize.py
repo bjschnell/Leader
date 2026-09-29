@@ -26,7 +26,7 @@ _OPTION = re.compile(r"^\s*(❯\s*)?\d+\.\s")
 _LIST = re.compile(r"^\s*(\d+[.)]|[-*•+]|\[[ xX]\])\s+")
 _CONCLUSION = re.compile(
     r"^(done|all\b|fixed|added|implemented|updated|created|completed|finished|shipped|"
-    r"summary|result|tests?\b|build\b|i('ve| have)|the (fix|change|migration|refactor)|"
+    r"summary|result|tests?\b|build\b|i('ve| have)\b|the (fix|change|migration|refactor)|"
     r"(it|this) (now|is)|no (changes|issues|errors))", re.IGNORECASE)
 _MD = re.compile(r"(\*\*|__|`)")
 
@@ -48,7 +48,8 @@ def _paragraph_lines(text):
         if not raw.strip():
             out.append("")
             continue
-        is_cont = raw.startswith("  ") and not _LIST.match(raw) and out and out[-1] and not _LIST.match(out[-1])
+        # an indented non-list line continues the previous line, list item or prose
+        is_cont = raw.startswith("  ") and not _LIST.match(raw) and out and out[-1]
         if is_cont:
             out[-1] = out[-1].rstrip() + " " + raw.strip()
         else:
@@ -70,6 +71,8 @@ def pick_summary_line(text, limit=MAX_LEN):
             return truncate(line, limit)
     if prose and len(prose) < len(lines):
         return truncate(prose[0], limit)  # list-heavy answer: its intro says what it is
+    if not prose:
+        return truncate(lines[0], limit)  # all list: the first item is usually the headline
     return truncate(lines[-1], limit)
 
 
@@ -106,6 +109,17 @@ def last_assistant_block(tail):
             continue
         block.append(line.replace("●", " ", 1) if not block else line)
     text = "\n".join(block).strip()
+    return text or None
+
+
+def last_turn(tail):
+    """The last user prompt and everything after it, chrome stripped (LLM input)."""
+    lines = strip_chrome(tail)
+    start = 0
+    for i, line in enumerate(lines):
+        if _PROMPT.match(line) and line.strip() not in ("❯", ">"):
+            start = i
+    text = "\n".join(l for l in lines[start:] if l.strip())
     return text or None
 
 
