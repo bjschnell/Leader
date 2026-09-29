@@ -99,3 +99,26 @@ From docs/binary:
 - `min_herdr_version = "0.8.2"`. Every method used exists in protocol 20. Tolerate unknown fields and event types so newer versions degrade gracefully.
 - Hook talks to the socket directly (python3, 0.5 s timeout, like herdr's own integration). This avoids spawning the herdr binary, which is better for AC3 (<50 ms). Seq = `time.time_ns()`.
 - Treat herdr's `done` as DONE-UNSEEN. The daemon adds only a local "dismissed" overlay for `s`/`S`.
+
+## 11. M1 live results (2026-09-29, real Claude Code 2.1.284 in dev pane, hooks via `claude --settings <tmp>`)
+
+Timeline measured by the scenario driver (herdr status events and hook log on one clock):
+
+| Scenario | Hooks fired | herdr status | Verdict |
+|---|---|---|---|
+| Prompt → finish | UserPromptSubmit, Stop | working (+70 ms) → idle | ✅ |
+| Bash permission → approve | PermissionRequest (dialog shown), PostToolUse, Stop | blocked **~50–90 ms after the dialog** → working → idle | ✅ AC "blocked within 1 s" |
+| — same, Claude's own Notification | `permission_prompt` arrives **~6 s after** PermissionRequest, with a vaguer message | stays blocked; token not overwritten | ✅ (PermissionRequest is the primary signal) |
+| AskUserQuestion → answer | PreToolUse(AskUserQuestion), PermissionRequest(AskUserQuestion), PostToolUse, Stop | blocked with the question text → working → idle | ✅ The screen manifest calls this dialog **idle**; hooks beat the screen here |
+| Unfocused tab finishes | Stop | `done`; `tab focus` → `idle` | ✅ herdr's seen model works under custom authority |
+| `/exit` | SessionEnd | agent released (`agent=null`), tokens cleared | ✅ |
+| **Permission → deny with Esc** | **none** | **stuck `blocked`** while the screen shows idle | ❌ gap |
+| **Esc interrupt mid-turn** | **none** (no Stop) | **stuck `working`** until the next prompt | ❌ gap |
+
+Other facts learned:
+- **herdr answers exactly one request per connection** and then closes it (a second request on the same socket gets `EPIPE`). The test fake now behaves the same way.
+- herdr sometimes takes **~100 ms to reply** to a state-changing request (≈2–4 % of calls). It **applies requests even if the client hangs up right after sending** (100/100 in a test with alternating states). So the hook waits at most 25 ms for a reply.
+- Hook overhead against the real socket, n=200: **median 14.7 ms, p95 39.8 ms, max 40.4 ms** (AC3 < 50 ms ✅). Outside herdr: 0.5 ms.
+- Metadata tokens can lag the status event by a few tens of ms. Consumers should re-read, not assume they arrive together.
+
+The two ❌ gaps are inherent: Claude Code emits no hook for them. Mitigation belongs in M2 (see the open decision in the M2 notes).
