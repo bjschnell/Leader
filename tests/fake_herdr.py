@@ -12,6 +12,7 @@ class FakeHerdr:
         self.dir = tempfile.mkdtemp(prefix="fake-herdr-")
         self.path = os.path.join(self.dir, "herdr.sock")
         self.requests = []
+        self.streams = []
         self.reply = reply or (lambda req: {"type": "ok"})
         self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._sock.bind(self.path)
@@ -51,8 +52,27 @@ class FakeHerdr:
                     return
 
     def _stream(self, conn):
-        """Hook for subscription tests; the base fake just holds the stream open."""
-        return
+        """Hold the subscription open; push() writes events to every live stream."""
+        self.streams.append(conn)
+        while not self._stop:
+            try:
+                if not conn.recv(1):
+                    break
+            except OSError:
+                break
+        if conn in self.streams:
+            self.streams.remove(conn)
+
+    def push(self, event):
+        line = (json.dumps(event) + "\n").encode()
+        for conn in list(self.streams):
+            try:
+                conn.sendall(line)
+            except OSError:
+                pass
+
+    def subscriptions(self):
+        return [r["params"]["subscriptions"] for r in self.requests if r["method"] == "events.subscribe"]
 
     def close(self):
         self._stop = True

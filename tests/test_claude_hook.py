@@ -42,6 +42,7 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(a["state"], "blocked")
         self.assertEqual(a["message"], "Permission: Bash rm -rf build")
         self.assertEqual(a["tokens"][ch.MSG_TOKEN], a["message"])
+        self.assertEqual(a["tokens"][ch.KIND_TOKEN], "permission")
 
         a = ch.plan(ev("Notification", notification_type="permission_prompt",
                        message="Claude needs your permission to use Bash"))
@@ -49,11 +50,12 @@ class PlanTests(unittest.TestCase):
 
         self.assertEqual(a["tokens"], {})  # keeps PermissionRequest's specific text
         a = ch.plan(ev("Notification", notification_type="elicitation_dialog", message="MCP wants input"))
-        self.assertEqual(a["tokens"], {ch.MSG_TOKEN: "MCP wants input"})
+        self.assertEqual(a["tokens"], {ch.MSG_TOKEN: "MCP wants input", ch.KIND_TOKEN: "input"})
 
         q = {"questions": [{"question": "Which DB?", "options": []}]}
         a = ch.plan(ev("PermissionRequest", tool_name="AskUserQuestion", tool_input=q))
         self.assertEqual((a["state"], a["message"]), ("blocked", "Which DB?"))
+        self.assertEqual(a["tokens"][ch.KIND_TOKEN], "question")
 
         a = ch.plan(ev("PreToolUse", tool_name="AskUserQuestion",
                        tool_input={"questions": [{"question": "Which DB?", "options": []}]}))
@@ -70,9 +72,9 @@ class PlanTests(unittest.TestCase):
         self.assertIsNone(ch.plan("not a dict"))
 
     def test_working_clears_message_and_stop_keeps_last_line(self):
-        self.assertEqual(ch.plan(ev("UserPromptSubmit"))["tokens"], {ch.MSG_TOKEN: None})
+        self.assertEqual(ch.plan(ev("UserPromptSubmit"))["tokens"], {ch.MSG_TOKEN: None, ch.KIND_TOKEN: None})
         a = ch.plan(ev("Stop", last_assistant_message="Line one\n\nAll tests pass.\n"))
-        self.assertEqual(a["tokens"], {ch.MSG_TOKEN: None, ch.LAST_TOKEN: "All tests pass."})
+        self.assertEqual(a["tokens"], {ch.MSG_TOKEN: None, ch.KIND_TOKEN: None, ch.LAST_TOKEN: "All tests pass."})
 
     def test_one_line_truncates(self):
         self.assertEqual(len(ch.one_line("x" * 500)), ch.MAX_TEXT)
@@ -87,7 +89,7 @@ class RequestTests(unittest.TestCase):
         report = reqs[0][1]
         self.assertEqual(report, {"pane_id": "w1:p2", "source": ch.SOURCE, "agent": "claude",
                                   "state": "blocked", "seq": 42, "message": "Permission: Edit a.py"})
-        self.assertEqual(reqs[1][1]["tokens"], {ch.MSG_TOKEN: "Permission: Edit a.py"})
+        self.assertEqual(reqs[1][1]["tokens"], {ch.MSG_TOKEN: "Permission: Edit a.py", ch.KIND_TOKEN: "permission"})
 
     def test_release_requests(self):
         reqs = ch.requests_for({"kind": "release"}, "w1:p2", 7)

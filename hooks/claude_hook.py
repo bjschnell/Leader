@@ -22,6 +22,7 @@ REPLY_WAIT_S = 0.025       # herdr applies requests even if we hang up; it somet
                             # stalls ~100 ms before replying, which Claude should not pay for
 MSG_TOKEN = "hq_msg"      # what a blocked agent needs (or null)
 LAST_TOKEN = "hq_last"    # last assistant line when a turn ends
+KIND_TOKEN = "hq_kind"    # why blocked: permission | question | input (or null)
 TOKEN_TTL_MS = 86_400_000  # herdr maximum; tokens are cleared on transitions anyway
 MAX_TEXT = 200            # herdr caps presentation text at 80; keep a bit more for the daemon
 
@@ -89,34 +90,36 @@ def plan(payload):
     if event == "SessionStart":
         if payload.get("source") in SESSION_START_IDLE_SOURCES:
             return {"kind": "report", "state": "idle", "message": None,
-                    "tokens": {MSG_TOKEN: None, LAST_TOKEN: None}}
+                    "tokens": {MSG_TOKEN: None, KIND_TOKEN: None, LAST_TOKEN: None}}
         return None  # "compact" can fire mid-turn
     if event == "UserPromptSubmit":
         return {"kind": "report", "state": "working", "message": None,
-                "tokens": {MSG_TOKEN: None}}
+                "tokens": {MSG_TOKEN: None, KIND_TOKEN: None}}
     if event == "PreToolUse":
         if payload.get("tool_name") == "AskUserQuestion":
             msg = ask_user_question_text(payload) or "Claude is asking a question"
             return {"kind": "report", "state": "blocked", "message": msg,
-                    "tokens": {MSG_TOKEN: msg}}
+                    "tokens": {MSG_TOKEN: msg, KIND_TOKEN: "question"}}
         return None
     if event == "PermissionRequest":
         if payload.get("tool_name") == "AskUserQuestion":
             msg = ask_user_question_text(payload) or "Claude is asking a question"
+            kind = "question"
         else:
             msg = describe_tool(payload)
+            kind = "permission"
         return {"kind": "report", "state": "blocked", "message": msg,
-                "tokens": {MSG_TOKEN: msg}}
+                "tokens": {MSG_TOKEN: msg, KIND_TOKEN: kind}}
     if event in ("PostToolUse", "PostToolUseFailure"):
         return {"kind": "report", "state": "working", "message": None,
-                "tokens": {MSG_TOKEN: None}}
+                "tokens": {MSG_TOKEN: None, KIND_TOKEN: None}}
     if event == "Notification":
         ntype = payload.get("notification_type")
         if ntype in BLOCKING_NOTIFICATIONS:
             msg = one_line(payload.get("message")) or "Claude needs your input"
             # permission_prompt trails PermissionRequest by seconds with a vaguer
             # message; keep the specific token PermissionRequest already set.
-            tokens = {} if ntype == "permission_prompt" else {MSG_TOKEN: msg}
+            tokens = {} if ntype == "permission_prompt" else {MSG_TOKEN: msg, KIND_TOKEN: "input"}
             return {"kind": "report", "state": "blocked", "message": msg, "tokens": tokens}
         return None  # idle_prompt etc.: already settled, must not revive
     if event in ("Stop", "StopFailure"):
@@ -125,7 +128,7 @@ def plan(payload):
             err = payload.get("error_type") or payload.get("error") or "error"
             last = one_line(f"Turn failed: {err}")
         return {"kind": "report", "state": "idle", "message": last,
-                "tokens": {MSG_TOKEN: None, LAST_TOKEN: last}}
+                "tokens": {MSG_TOKEN: None, KIND_TOKEN: None, LAST_TOKEN: last}}
     if event == "SessionEnd":
         return {"kind": "release"}
     return None
@@ -138,7 +141,7 @@ def requests_for(action, pane_id, seq):
             "pane_id": pane_id, "source": SOURCE, "agent": AGENT, "seq": seq}))
         reqs.append(("pane.report_metadata", {
             "pane_id": pane_id, "source": META_SOURCE, "seq": seq,
-            "tokens": {MSG_TOKEN: None, LAST_TOKEN: None}}))
+            "tokens": {MSG_TOKEN: None, KIND_TOKEN: None, LAST_TOKEN: None}}))
         return reqs
     params = {"pane_id": pane_id, "source": SOURCE, "agent": AGENT,
               "state": action["state"], "seq": seq}
